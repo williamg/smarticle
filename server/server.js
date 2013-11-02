@@ -7,7 +7,8 @@ var dash = require (__dirname + '/../routes/dashboard');
 // Config
 app.set ('view engine', 'jade');
 app.set ('views', __dirname + '/../views/');
-app.use (express.static(__dirname + '/../public/'));
+app.use (express.static (__dirname + '/../public/'));
+app.use (express.bodyParser ());
 
 // Main page
 app.get ('/', function (req, res) {
@@ -16,6 +17,7 @@ app.get ('/', function (req, res) {
 
 // Routing
 app.get('/dashboard', dash.main);
+app.post('/dashboard', dash.post);
 
 // Start app
 app.listen (3000);
