@@ -24,25 +24,22 @@ exports.getArticles = function (userID, callback) {
 	
 	connection.query (query, function (err, rows) {
 		if (err) {
-			console.log ("Error connecting to DB: " + err.code);
-			return null;
+			console.log ('database.js/getArticles - ' + 
+				'error with DB: ' + err.code);
+			return callback (err, null);
 		}
 
 		// Connection successful. 
 		// Package articles into a pretty format
-		var articles = [];
-		
-		console.log ('Retrieved ' + rows.length + ' articles');
+		var articles = [];		
 		for (var i = 0; i < rows.length; i++) {
 			articles[i] = {
 				title: rows[i].title,
 				link: rows[i].url
 			};
-
-		
 		}
 
-		return callback (articles);
+		return callback (null, articles);
 	});
 
 };
@@ -50,22 +47,24 @@ exports.getArticles = function (userID, callback) {
 exports.getCategories = function (userID, callback) {
 	var query =	'SELECT DISTINCT categories.name ' +
 			'FROM userCat ' +
-			'INNER JOIN categories ON categories.id = userCat.catID ' +
-			'WHERE userCat.primary = 1 AND userCat.userID = ' + userID;
+			'INNER JOIN categories ' + 
+			'ON categories.id = userCat.catID ' +
+			'WHERE userCat.primary = 1 AND userCat.userID = ' +
+			userID;
 
 	connection.query (query, function (err, rows) {
 		if (err) {
-			console.log ('database.js/getCategories - error with DB: ' + err.code);
-			return null;
+			console.log ('database.js/getCategories - ' + 
+				'error with DB: ' + err.code);
+			return callback (err, null);
 		}
 
 		var categories = [];
-
 		for (var i = 0; i < rows.length; i++) {
 			categories[i] = {name: rows[i].name };
 		}
 
-		return callback (categories);
+		return callback (null, categories);
 	});
 };
 
@@ -75,120 +74,39 @@ exports.getCategories = function (userID, callback) {
 // is already a secondary category of the user. If it is, it is made a primary category.
 // Then, if it is not already a primary category of the user, an entry is added in the userCat
 // table that links the user and the category.
-exports.addCategory = function (category, userID, callback) {
-
+exports.addPrimaryCatToUser = function (category, userID, callback) {
 	category = connection.escape (category.toLowerCase ());
-
-	// If the category doesn't exist, create it.
-	// Link the category and the user
-	categoryExists (category, function (exists) {
-		if (exists)
-			return addCatToUser (category, userID, callback);
-	
-		var query =	'INSERT INTO categories (name, popularity) VALUES (' + category + ', 0)';
+	addCategory (category, function (err) {
+		// If the category is already a seconday category of the user,
+		// promote it to be a primary category	
+		return makePrimaryCat (category, userID, callback);
 		
-		connection.query (query, function (err, result) {
-			if (err) {
-				console.log ('database.js/addCategory - error connecting to DB: ' + err.code);
-				return null;
-			}
-
-			// Connection successful.
-			return addCatToUser (category, userID, callback);
-		});			
 	});
-
-	
 };
 
-// Make a category a primary category of a user
-function addCatToUser (category, userID, callback) {
-	// If the category is already a seconday category of the user,
-	// promote it to be a primary category.
-	makePrimaryCategory (category, userID, function () {
-		userHasPrimaryCategory (category, userID, function (userHas) {
-			// Don't do anything if it's already a primary category of the user
-			if (userHas) return callback;
-
-			return addPrimaryCategory (category, userID, callback);
-		});
-	});
-}
-
-// Check whether or not a category exists
-function categoryExists (category, callback) {
-	var query =	'SELECT COUNT(*) AS total FROM categories WHERE name = ' + category;
+function addCategory (category, callback) {	
+	// If the category doesn't exist, create it.	
+	var query =	'INSERT INTO categories (name, popularity) ' +
+			'VALUES (' + category + ', 0)' + 
+			'ON DUPLICATE KEY UPDATE name = name';
 	
-	connection.query (query, function (err, rows) {
+	connection.query (query, function (err, result) {
 		if (err) {
-			console.log ('database.js/categoryExists - error with  DB: ' + err.code);
-			return null;
-		}
-
-		// Return the result of the query
-		return callback (rows[0].total > 0);
-	});
-
-}
-
-// Check whether or not the specified category is a secondary category of the user
-function userHasSecondaryCategory (category, userID, callback) {
-	var query =	'SELECT COUNT(*) AS total FROM userCat ' +
-			'INNER JOIN categories ON categories.id = userCat.catID ' + 
-			'WHERE categories.name = ' + category + ' ' +
-			'AND userCat.primary = 0 AND userCat.userID = ' + userID;
-	
-	connection.query (query, function (err, rows) {
-		if (err) {
-			console.log ('database.js/userHasSecondaryCategory - error with DB: ' + err.code);
-			return null;
-		}
-		
-		// Return the result of the query
-		return callback(rows[0].total > 0);
-	});
-}
-
-// Force a users category to be a primary category
-function makePrimaryCategory (category, userID, callback) {	
-	var query =	'UPDATE userCat ' + 
-			'INNER JOIN categories ON categories.id = userCat.catID ' +
-			'SET userCat.primary=1 WHERE userCat.userID = ' + userID + ' ' +
-			'AND categories.name = ' + category;
-	
-	connection.query (query, function (err, rows) {
-		if (err) {
-			console.log ('database.js/makePrimaryCategory - error with DB: ' + err.code);
-			return null;
+			console.log ('database.js/addCategory - ' + 
+				'error connecting to DB: ' + err.code);
+			return callback (err2);
 		}
 
 		// Connection successful.
-		return callback();
-	});
+		return callback (null);
+	});			
 }
-
-function userHasPrimaryCategory (category, userID, callback) {
-	var query =	'SELECT COUNT(*) AS total FROM userCat ' +
-			'INNER JOIN categories ON categories.id = userCat.catID ' + 
-			'WHERE categories.name = ' + category + ' ' +
-			'AND userCat.primary = 1  AND userCat.userID = ' + userID;
-	
-	connection.query (query, function (err, rows) {
-		if (err) {
-			console.log ('database.js/userHasPrimaryCategory - error with DB: ' + err.code);
-			return null;
-		}
-
-		// Connection successful
-		return callback (rows[0].total > 0);
-	});
-}
-
-function addPrimaryCategory (category, userID, callback) {
+function makePrimaryCat (category, userID, callback) {
 	var query =	'INSERT INTO userCat (userID, catID, `primary`) ' +
 			'SELECT ' + userID + ', id, 1 ' +
-			'FROM categories WHERE name = ' +  category;
-
+			'FROM categories WHERE name = ' +  category + ' ' + 
+			'ON DUPLICATE KEY UPDATE userCat.primary = 1';	
+			
 	connection.query (query, function (err, result) {
 		if (err) {
 			console.log ('database.js/addPrimaryCategory - error with DB: ' + err.code);
@@ -200,5 +118,43 @@ function addPrimaryCategory (category, userID, callback) {
 	});	
 }
 
-exports.removeCategory = function (category, userUD) {
+exports.removePrimaryCatFromUser = function (category, userID, callback) {
+		removePrimaryCategory (category, userID, function () {
+				return removeUnusedCategories (category, callback);
+		});
 };
+
+function removePrimaryCategory (category, userID, callback) {
+	var query =	'DELETE userCat FROM userCat ' +
+			'INNER JOIN categories ON categories.id = userCat.catID ' + 
+			'WHERE userCat.userID = ' + userID + ' ' +
+			'AND categories.name = "' + category + '" ' +
+			'AND userCat.primary = 1';		
+
+	connection.query (query, function (err, result) {
+		if (err) {
+			console.log ('database.js/removePrimaryCategory - error with DB: ' + err.code);
+			return null;
+		}
+
+		// Connection successful.
+		return callback ();
+	});	
+}
+
+function removeUnusedCategories (category, callback) {
+	var query =	'DELETE FROM categories ' +	
+			'WHERE NOT EXISTS (' + 
+			'SELECT 1 FROM userCat ' + 
+			'WHERE userCat.catID = categories.id)';	
+
+	connection.query (query, function (err, result) {
+		if (err) {
+			console.log ('database.js/removePrimaryCategory - error with DB: ' + err.code);
+			return null;
+		}
+
+		// Connection successful.
+		return callback;
+	});
+}

@@ -10,13 +10,23 @@ exports.post = function (req, res) {
 	var action = req.body.action;
 	var user = req.body.userID;
 
-	if (action == 'add') return db.addCategory (category, user, res.redirect ('/dashboard'));
-	else return db.removeCategory (category, user, res.redirect ('/dashboard'));
+	if (action == 'add') return db.addPrimaryCatToUser (category, user, res.redirect ('/dashboard'));
+	else return db.removePrimaryCatFromUser (category, user, res.redirect ('/dashboard'));
 };
 
 function renderDashboard (req, res) {
-	db.getArticles (1, function(articles) {
-		db.getCategories (1, function (categories) {
+	db.getArticles (1, function(err, articles) {
+		if (err) {
+			console.log ('error retrieving articles');
+			articles = [];
+		}
+
+		db.getCategories (1, function (err2, categories) {
+			if (err2) {
+				console.log ('error retrieving categories');
+				categories = [];
+			}
+
 			res.render ('dashboard', {data:{articles:articles, categories:categories}});
 		});	
 	});
