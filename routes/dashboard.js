@@ -10,8 +10,17 @@ exports.post = function (req, res) {
 	var action = req.body.action;
 	var user = req.body.userID;
 
-	if (action == 'add') return db.addPrimaryCatToUser (category, user, res.redirect ('/dashboard'));
-	else return db.removePrimaryCatFromUser (category, user, res.redirect ('/dashboard'));
+	if (action == 'add') {
+		db.addPrimaryCatToUser (category, user, function (err) {
+			if (err) return null;
+			return res.redirect ('/dashboard');
+		});
+	} else {
+		db.removePrimaryCatFromUser (category, user, function (err) {
+			if (err) return null;
+			return res.redirect ('/dashboard');
+		});
+	}
 };
 
 function renderDashboard (req, res) {

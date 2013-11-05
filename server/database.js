@@ -1,5 +1,6 @@
-// Defines functionality for retrieving DB information
+// Defines functionality for retrieving and storing  DB information
 
+// Database credentials
 var host = 'localhost';
 var user = 'root';
 var password = 'root';
@@ -15,6 +16,20 @@ var connection = mysql.createConnection ({
 	port:		port
 });
 
+// Execute a database query
+function queryDB (query, callback) {
+	connection.query (query, function (err, result) {
+		
+		if (err) {
+			console.log ('Error executing query: ' + query);
+			return callback (err, null);
+		}
+
+		return callback (null, result);
+	});
+}
+
+// Select the articles waiting for a user
 exports.getArticles = function (userID, callback) {
 	var query =	'SELECT DISTINCT articles.title, articles.url ' +
 			'FROM userCat ' +
@@ -22,14 +37,10 @@ exports.getArticles = function (userID, callback) {
 			'INNER JOIN articles ON catArt.artID = articles.id ' +
 			'WHERE userCat.userID = ' +  userID;
 	
-	connection.query (query, function (err, rows) {
-		if (err) {
-			console.log ('database.js/getArticles - ' + 
-				'error with DB: ' + err.code);
-			return callback (err, null);
-		}
+	queryDB (query, function (err, rows) {
+		if (err) return callback (err, null);
 
-		// Connection successful. 
+		// Query successful. 
 		// Package articles into a pretty format
 		var articles = [];		
 		for (var i = 0; i < rows.length; i++) {
@@ -44,6 +55,7 @@ exports.getArticles = function (userID, callback) {
 
 };
 
+// Select a user's primary categories
 exports.getCategories = function (userID, callback) {
 	var query =	'SELECT DISTINCT categories.name ' +
 			'FROM userCat ' +
@@ -52,13 +64,10 @@ exports.getCategories = function (userID, callback) {
 			'WHERE userCat.primary = 1 AND userCat.userID = ' +
 			userID;
 
-	connection.query (query, function (err, rows) {
-		if (err) {
-			console.log ('database.js/getCategories - ' + 
-				'error with DB: ' + err.code);
-			return callback (err, null);
-		}
+       queryDB (query, function (err, rows) {
+		if (err) return callback (err, null);
 
+		// Query successful
 		var categories = [];
 		for (var i = 0; i < rows.length; i++) {
 			categories[i] = {name: rows[i].name };
@@ -69,16 +78,15 @@ exports.getCategories = function (userID, callback) {
 };
 
 // Add a category to a user.
-// If the category does not already exist, it is created and added to the
-// categories table. From there, it is determined whether or not the category
-// is already a secondary category of the user. If it is, it is made a primary category.
-// Then, if it is not already a primary category of the user, an entry is added in the userCat
-// table that links the user and the category.
 exports.addPrimaryCatToUser = function (category, userID, callback) {
 	category = connection.escape (category.toLowerCase ());
+	
+	// Create the category if it is not used by any other user
 	addCategory (category, function (err) {
-		// If the category is already a seconday category of the user,
-		// promote it to be a primary category	
+
+		if (err) return callback (err);
+
+		// Make the category a primary category for the user
 		return makePrimaryCat (category, userID, callback);
 		
 	});
@@ -90,37 +98,34 @@ function addCategory (category, callback) {
 			'VALUES (' + category + ', 0)' + 
 			'ON DUPLICATE KEY UPDATE name = name';
 	
-	connection.query (query, function (err, result) {
-		if (err) {
-			console.log ('database.js/addCategory - ' + 
-				'error connecting to DB: ' + err.code);
-			return callback (err2);
-		}
+	queryDB (query, function (err, result) {
+		if (err) return callback (err);
 
 		// Connection successful.
 		return callback (null);
 	});			
 }
+
 function makePrimaryCat (category, userID, callback) {
 	var query =	'INSERT INTO userCat (userID, catID, `primary`) ' +
 			'SELECT ' + userID + ', id, 1 ' +
 			'FROM categories WHERE name = ' +  category + ' ' + 
 			'ON DUPLICATE KEY UPDATE userCat.primary = 1';	
 			
-	connection.query (query, function (err, result) {
-		if (err) {
-			console.log ('database.js/addPrimaryCategory - error with DB: ' + err.code);
-			return null;
-		}
+	queryDB (query, function (err, result) {
+		if (err) return callback(err);
 
 		// Connection successful.
-		return callback;
+		return callback(null);
 	});	
 }
 
 exports.removePrimaryCatFromUser = function (category, userID, callback) {
-		removePrimaryCategory (category, userID, function () {
-				return removeUnusedCategories (category, callback);
+		removePrimaryCategory (category, userID, function (err) {
+
+			if (err) return callback (err);
+
+			return removeUnusedCategories (category, callback);
 		});
 };
 
@@ -131,14 +136,11 @@ function removePrimaryCategory (category, userID, callback) {
 			'AND categories.name = "' + category + '" ' +
 			'AND userCat.primary = 1';		
 
-	connection.query (query, function (err, result) {
-		if (err) {
-			console.log ('database.js/removePrimaryCategory - error with DB: ' + err.code);
-			return null;
-		}
+	queryDB (query, function (err, result) {
+		if (err) return callback(err);
 
 		// Connection successful.
-		return callback ();
+		return callback (null);
 	});	
 }
 
@@ -148,13 +150,10 @@ function removeUnusedCategories (category, callback) {
 			'SELECT 1 FROM userCat ' + 
 			'WHERE userCat.catID = categories.id)';	
 
-	connection.query (query, function (err, result) {
-		if (err) {
-			console.log ('database.js/removePrimaryCategory - error with DB: ' + err.code);
-			return null;
-		}
+	queryDB (query, function (err, result) {
+		if (err) return callback (err);
 
 		// Connection successful.
-		return callback;
+		return callback(null);
 	});
 }
