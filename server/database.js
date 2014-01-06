@@ -1,4 +1,4 @@
-// Defines functionality for retrieving and storing  DB information
+var mysql = require ('mysql');
 
 // Database credentials
 var host = 'localhost';
@@ -7,29 +7,29 @@ var password = 'root';
 var database = 'smarticle';
 var port = '8889';
 
-var mysql = require ('mysql');
 var connection = mysql.createConnection ({
-	host:		host,
-	user:		user,
-	password:	password,
-	database:	database,
-	port:		port
+  host:     host,
+  user:     user,
+  password: password,
+  database: database,
+  port:     port
 });
 
 // Execute a database query
 exports.queryDB = function (query, callback) {
-	connection.query (query, function (err, result) {
+  connection.query (query, function (err, result) {
 		
-		if (err) {
-			console.log ('Error executing query: ' + query);
-			callback (err, null);
-			return;
-		}
+    if (err) {
+      console.log ('Error executing query: ' + query);
+      callback (err, null);
+      return;
+    }
 
-		callback (null, result);
-	});
+    callback (null, result);
+  });
 };
 
+// Safely escape a string for MySQL insertion
 exports.escape = function (string) {
-	return connection.escape (string);
-}
+  return connection.escape (string);
+};
