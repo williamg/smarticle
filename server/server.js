@@ -1,36 +1,60 @@
+// =============================================================================
+// Config 
+// =============================================================================
 var express = require ('express');
 var app = express ();
 
-// Routes
-var users = require (__dirname + '/../routes/users');
-var search = require (__dirname + '/../server/search');
-
-// Config
-//app.set ('view engine', 'jade');
-//app.set ('views', __dirname + '/../views/');
 app.use (express.static (__dirname + '/../public/'));
 app.use (express.bodyParser ());
 
-// Main page
-app.get ('/', function (req, res) {
-	res.render('index', null);
-});
-
+// =============================================================================
 // API Routing
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// User data
+// ----------------------------------------------------------------------------
+var users = require (__dirname + '/../routes/users');
+
+// Get data about a specific user
 app.get ('/api/users/:userID/', users.getUser);
-app.post ('/api/users', users.addUser);
+
+// Get a user's primary keywords
 app.get ('/api/users/:userID/primaryKeywords', users.getPrimaryKeywords);
+
+// Get a user's secondary keywords
 app.get ('/api/users/:userID/secondaryKeywords', users.getSecondaryKeywords);
-app.del ('/api/users/:userID/primaryKeywords/:keyword', users.removePrimaryKeyword);
-app.put ('/api/users/:userID/primaryKeywords/:keyword', users.addPrimaryKeyword);
+
+// Remove a user's primary keyword
+app.del ('/api/users/:userID/primaryKeywords/:keyword',
+	users.removePrimaryKeyword);
+
+// Add a new primary keyword to a user
+app.put ('/api/users/:userID/primaryKeywords/:keyword',
+	users.addPrimaryKeyword);
+
+// Get a user's suggested articles
 app.get ('/api/users/:userID/articles', users.getArticles);
 
-/*
-app.get('/dashboard', dash.main);
-app.post('/dashboard', dash.post);
-app.get('/search', search.execute);
-*/
 
-// Start app
+// -----------------------------------------------------------------------------
+// Keyword  data
+// ----------------------------------------------------------------------------
+var keywords = require (__dirname + '/../routes/keywords');
+
+// Get the list of all primary and secondary keywords of all users
+app.get ('/api/keywords', keywords.getAllKeywords);
+
+// Get info about a specific keyword
+app.get ('/api/keywords/:keyword', keywords.getKeyword);
+
+// Add a keyword
+app.put ('/api/keywords/:keyword', keywords.addKeyword);
+
+// =============================================================================
+// Server Tasks
+// =============================================================================
+var search = require (__dirname + '/../server/search.js');
+app.get ('/search', search.execute);
 app.listen (3000);
 

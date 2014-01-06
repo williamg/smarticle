@@ -30,3 +30,6 @@ exports.queryDB = function (query, callback) {
 	});
 };
 
+exports.escape = function (string) {
+	return connection.escape (string);
+}

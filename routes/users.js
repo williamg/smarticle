@@ -1,3 +1,4 @@
+var request = require ('request');
 var db = require (__dirname + '/../server/database.js');
 var async = require ('async');
 
@@ -5,13 +6,6 @@ var async = require ('async');
 // Retrieve basic info about a user
 // =============================================================================
 exports.getUser = function (req, res) {
-
-};
-
-// =============================================================================
-// Create a new user
-// =============================================================================
-exports.addUser = function (req, res) {
 
 };
 
@@ -28,17 +22,17 @@ exports.getPrimaryKeywords = function (req, res) {
 
 	var userID = req.params.userID;
 
-	var query =	'SELECT DISTINCT categories.name ' +
-			'FROM userCat ' +
-			'INNER JOIN categories ' + 
-			'ON categories.id = userCat.catID ' +
-			'WHERE userCat.primary = 1 AND userCat.userID = ' +
+	var query =	'SELECT DISTINCT keywords.name ' +
+			'FROM userKey ' +
+			'INNER JOIN keywords ' + 
+			'ON keywords.id = userKey.keyID ' +
+			'WHERE userKey.primary = 1 AND userKey.userID = ' +
 			userID;
 
        db.queryDB (query, function (err, rows) {
 		if (err) {
-			res.statusCode = 401;
-			return res.send ('Error 401: ' + err);
+			res.statusCode = 499;
+			return res.send ('Error 499: ' + err);
 		}
 			
 		return res.json (rows);
@@ -58,11 +52,11 @@ exports.getSecondaryKeywords = function (req, res) {
 
 	var userID = req.params.userID;
 
-	var query =	'SELECT DISTINCT categories.name ' +
-			'FROM userCat ' +
-			'INNER JOIN categories ' + 
-			'ON categories.id = userCat.catID ' +
-			'WHERE userCat.primary = 0 AND userCat.userID = ' +
+	var query =	'SELECT DISTINCT keywords.name ' +
+			'FROM userKey ' +
+			'INNER JOIN keywords ' + 
+			'ON keywords.id = userKey.keyID ' +
+			'WHERE userKey.primary = 0 AND userKey.userID = ' +
 			userID;
 
        db.queryDB (query, function (err, rows) {
@@ -93,12 +87,12 @@ exports.removePrimaryKeyword = function (req, res) {
 	var userID = req.params.userID;
 	var keyword = req.params.keyword;	
 	
-	var query =	'DELETE userCat FROM userCat ' +
-			'INNER JOIN categories ON ' +
-			'categories.id = userCat.catID ' + 
-			'WHERE userCat.userID = ' + userID + ' ' +
-			'AND categories.name = "' + keyword + '" ' +
-			'AND userCat.primary = 1';		
+	var query =	'DELETE userKey FROM userKey ' +
+			'INNER JOIN keywords ON ' +
+			'keywords.id = userKey.keyID ' + 
+			'WHERE userKey.userID = ' + userID + ' ' +
+			'AND keywords.name = "' + keyword + '" ' +
+			'AND userKey.primary = 1';		
 
 	db.queryDB (query, function (err) {
 		if (err) {
@@ -132,7 +126,16 @@ exports.addPrimaryKeyword = function (req, res) {
 		
 	async.series ([
 		function (callback) {
-			addKeyword (keyword, callback);
+			var addKey = 'http://127.0.0.1:3000/api/keywords/' + keyword;
+			request.put (addKey, function (err, res2, body) {
+				
+				body = JSON.parse (body);
+				if (res2.statusCode != 201) {
+					return callback (body, null);
+				}
+
+				return callback (null);
+			});	
 		},
 		function (callback) {
 			makePrimaryKeyword (userID, keyword, callback);
@@ -148,31 +151,12 @@ exports.addPrimaryKeyword = function (req, res) {
 	});
 };
 
-function addKeyword (keyword, callback) {
-
-	// If the category doesn't exist, create it.	
-	var query =	'INSERT INTO categories (name, popularity) ' +
-			'VALUES ("' + keyword + '", 0)' + 
-			'ON DUPLICATE KEY UPDATE name = name';
-	
-	db.queryDB (query, function (err, result) {
-		if (err) {
-			callback (err);
-			return;
-		}
-
-		// Connection successful.
-		callback (null);
-	});			
-
-}
-
 function makePrimaryKeyword (userID, keyword, callback) {
 	
-	var query =	'INSERT INTO userCat (userID, catID, `primary`) ' +
+	var query =	'INSERT INTO userKey (userID, keyID, `primary`) ' +
 			'SELECT ' + userID + ', id, 1 ' +
-			'FROM categories WHERE name = "' + keyword + '" ' + 
-			'ON DUPLICATE KEY UPDATE userCat.primary = 1';	
+			'FROM keywords WHERE name = "' + keyword + '" ' + 
+			'ON DUPLICATE KEY UPDATE userKey.primary = 1';	
 			
 	db.queryDB (query, function (err, result) {
 		if (err) {
@@ -196,10 +180,10 @@ exports.getArticles = function (req, res) {
 	}
 
 	var query =	'SELECT DISTINCT articles.title, articles.url ' +
-			'FROM userCat ' +
-			'INNER JOIN catArt ON userCat.catID = catArt.catID ' +
-			'INNER JOIN articles ON catArt.artID = articles.id ' +
-			'WHERE userCat.userID = ' +  userID;
+			'FROM userKey ' +
+			'INNER JOIN keyArt ON userKey.keyID = keyArt.keyID ' +
+			'INNER JOIN articles ON keyArt.artID = articles.id ' +
+			'WHERE userKey.userID = ' +  userID;
 	
 	db.queryDB (query, function (err, rows) {
 		if (err)

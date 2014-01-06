@@ -8,7 +8,8 @@
 		"request":	"2.27.0",
 		"string":	"1.7.0",
 		"mysql":	"2.0.0-alpha9",
-		"keyword-extractor": "0.0.7",
-		"async": "0.2.9"
+		"natural": 	"0.1.25",
+		"async": 	"0.2.9",
+		"lodash":	"2.4.1"
 	}
 }
