@@ -105,7 +105,7 @@ exports.addPrimaryKeyword = function (req, res) {
     return res.send ('Invalid userID');
   }
 
-  if (req.params.kewyord === '') {
+  if (req.params.keyword === '') {
     res.statusCode = 400;
     return res.send ('Keyword must not be null');
   }

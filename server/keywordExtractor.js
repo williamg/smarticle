@@ -138,11 +138,13 @@ Tf.prototype.listMostFrequentTerms = function (d) {
 // =============================================================================
 function blacklisted (term) {
 
-  if (term.match(/^\d+$/) || term.match (/^_/)) {
+  if (term.match(/^\d+$/) || term.match (/^_/) || term.length < 2) {
     return true;
   }
 
-  return _.indexOf(stopWords, term) !== -1;
+  var aposTerm = term.replace ("'", '’'); 
+  return  _.indexOf(stopWords, term) !== -1 || 
+          _.indexOf (stopWords, aposTerm) !== -1;
 }
 
 function usePhrase (phrase, options) {	
