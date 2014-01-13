@@ -234,9 +234,10 @@ function getKeyID (keyword, callback) {
 
 function insertArticle (article, callback) {
   article.title = db.escape (article.title);
-  var artQuery =  'INSERT INTO articles (title, date, url) VALUES ' +
-                  '("' + article.title + '", "' + article.date + '", "' +
-                  article.url + '")';
+  var artQuery =  'INSERT INTO articles (title, date, url, wordcount, site) ' +
+                  'VALUES ("' + article.title + '", "' + article.date + '", "' +
+                  article.url + '", "' + article.wordCount + '", "' + 
+                  article.site + '")';
 
   db.queryDB (artQuery, function (err, rows) {
     if (err)  return callback (err);

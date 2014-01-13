@@ -21,9 +21,9 @@ exports.getPrimaryKeywords = function (req, res) {
   }
 
   var userID = req.params.userID;
-  var query =	'SELECT DISTINCT keywords.name FROM userKey ' +
-		'INNER JOIN keywords ON keywords.id = userKey.keyID ' +
-		'WHERE userKey.primary = 1 AND userKey.userID = ' + userID;
+  var query =	'SELECT DISTINCT  keywords.name FROM primaryKeywords ' +
+		'INNER JOIN keywords ON keywords.id = primaryKeywords.keyID ' +
+		'WHERE primaryKeywords.userID = ' + userID;
 
   db.queryDB (query, function (err, rows) {
     if (err) {
@@ -47,9 +47,10 @@ exports.getSecondaryKeywords = function (req, res) {
   }
 
   var userID = req.params.userID;
-  var query =	'SELECT DISTINCT keywords.name FROM userKey ' +
-		'INNER JOIN keywords ON keywords.id = userKey.keyID ' +
-		'WHERE userKey.primary = 0 AND userKey.userID = ' + userID;
+  var query =	'SELECT DISTINCT keywords.name, secondaryKeywords.weight ' +
+                'FROM secondaryKewyords INNER JOIN keywords ' + 
+                'ON keywords.id = seoncdaryKeywords.keyID ' +
+		'WHERE seoncdaryKeywords..userID = ' + userID;
 
   db.queryDB (query, function (err, rows) {
     if (err) {
@@ -79,11 +80,10 @@ exports.removePrimaryKeyword = function (req, res) {
 
   var userID = req.params.userID;
   var keyword = req.params.keyword;		
-  var query = 'DELETE userKey FROM userKey INNER JOIN keywords ' + 
-              'ON keywords.id = userKey.keyID ' + 
-              'WHERE userKey.userID = ' + userID + ' ' +
-              'AND keywords.name = "' + keyword + '" ' +
-              'AND userKey.primary = 1';		
+  var query = 'DELETE primaryKeywords FROM primaryKeywords ' + 
+              'INNER JOIN keywords ON keywords.id = primaryKeywords.keyID ' + 
+              'WHERE primaryKeywords.userID = ' + userID + ' ' +
+              'AND keywords.name = "' + keyword + '"';	
 
   db.queryDB (query, function (err) {
     if (err) {
@@ -130,6 +130,9 @@ exports.addPrimaryKeyword = function (req, res) {
       });	
     },
     function (callback) {
+      removeSecondaryKeyword (userID, keyword, callback);
+    },
+    function (callback) {
       makePrimaryKeyword (userID, keyword, callback);
     }
   ],
@@ -144,21 +147,29 @@ exports.addPrimaryKeyword = function (req, res) {
   });
 };
 
+function removeSecondaryKeyword (userID, keyword, callback) {
+  var query = 'DELETE secondaryKeywords FROM secondaryKeywords ' +
+              'INNER JOIN keywords ON keywords.id = secondaryKeywords.keyID ' +
+              'WHERE keywords.name = "' + keyword + '"' +
+              'AND secondaryKeywords.userID = "' + userID + '"';
+
+  db.queryDB (query, function (err, result) {
+
+    if (err) return callback (err);
+    return callback (null);
+  });
+}
+
 function makePrimaryKeyword (userID, keyword, callback) {
-  var query = 'INSERT INTO userKey (userID, keyID, `primary`) ' +
-              'SELECT ' + userID + ', id, 1 ' +
+  var query = 'INSERT INTO primaryKeywords (userID, keyID) ' +
+              'SELECT ' + userID + ', id ' +
               'FROM keywords WHERE name = "' + keyword + '" ' + 
-              'ON DUPLICATE KEY UPDATE userKey.primary = 1';	
+              'ON DUPLICATE KEY UPDATE userID = "' + userID + '"';	
 			
   db.queryDB (query, function (err, result) {
     
-    if (err) {
-      callback(err);
-      return;
-    }
-
-    // Connection successful.
-    callback(null);
+    if (err) return callback (err);
+    return callback (null);
   });	
 }
 
