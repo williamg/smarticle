@@ -1,18 +1,20 @@
 var request = require ('request');
+var url = require ('url');
 var db = require (__dirname + '/../server/database.js');
 var async = require ('async');
 
-// =============================================================================
-// Retrieve basic info about a user
-// =============================================================================
-exports.getUser = function (req, res) {
+function getTableName (req) {
+  // Determine if it's primary or secondary
+  var pathname = url.parse (req.url).pathname;
+  pathname = pathname.split('/'); 
+  var tableName = pathname[4];
+  return tableName;
+}
 
-};
-
 // =============================================================================
-// Get a user's primary keywords
+// Get a user's keywords
 // =============================================================================
-exports.getPrimaryKeywords = function (req, res) {
+exports.getUserKeywords = function (req, res) {
 	
   // Verify valid api parameters
   if (req.params.userID < 0) {
@@ -20,10 +22,13 @@ exports.getPrimaryKeywords = function (req, res) {
     return res.send ('Invalid userID.');
   }
 
+  var tableName = getTableName (req);
+
   var userID = req.params.userID;
-  var query =	'SELECT DISTINCT  keywords.name FROM primaryKeywords ' +
-		'INNER JOIN keywords ON keywords.id = primaryKeywords.keyID ' +
-		'WHERE primaryKeywords.userID = ' + userID;
+  var query =	'SELECT DISTINCT *  FROM ' + tableName +
+		' INNER JOIN keywords ON keywords.id = ' +
+                tableName + '.keyID ' +
+		'WHERE ' + tableName + '.userID = ' + userID;
 
   db.queryDB (query, function (err, rows) {
     if (err) {
@@ -36,36 +41,9 @@ exports.getPrimaryKeywords = function (req, res) {
 };
 
 // =============================================================================
-// Get a user's secondary keywords
+// Remove a user's keyword
 // =============================================================================
-exports.getSecondaryKeywords = function (req, res) {
-
-  // Verify valid api parameters
-  if (req.params.userID < 0) {
-    res.statusCode = 400;
-    return res.send ('Invalid userID.');
-  }
-
-  var userID = req.params.userID;
-  var query =	'SELECT DISTINCT keywords.name, secondaryKeywords.weight ' +
-                'FROM secondaryKewyords INNER JOIN keywords ' + 
-                'ON keywords.id = seoncdaryKeywords.keyID ' +
-		'WHERE seoncdaryKeywords..userID = ' + userID;
-
-  db.queryDB (query, function (err, rows) {
-    if (err) {
-      res.statusCode = 500;
-      return res.send (err);
-    }
-			
-    return res.json (rows);
-  });
-};
-
-// =============================================================================
-// Remove a user's primary keyword
-// =============================================================================
-exports.removePrimaryKeyword = function (req, res) {
+exports.removeUserKeyword = function (req, res) {
 
   // Verify valid api parameters  
   if (req.params.userID < 0) {
@@ -78,11 +56,13 @@ exports.removePrimaryKeyword = function (req, res) {
     return res.send ('Keyword must not be null');
   }
 
+  // Determine if it's primary or secondary
+  var tableName = getTableName (req);
   var userID = req.params.userID;
   var keyword = req.params.keyword;		
-  var query = 'DELETE primaryKeywords FROM primaryKeywords ' + 
-              'INNER JOIN keywords ON keywords.id = primaryKeywords.keyID ' + 
-              'WHERE primaryKeywords.userID = ' + userID + ' ' +
+  var query = 'DELETE ' + tableName + ' FROM ' + tableName  +
+              ' INNER JOIN keywords ON keywords.id = ' + tableName + '.keyID ' + 
+              'WHERE ' + tableName + '.userID = ' + userID + ' ' +
               'AND keywords.name = "' + keyword + '"';	
 
   db.queryDB (query, function (err) {
@@ -96,9 +76,9 @@ exports.removePrimaryKeyword = function (req, res) {
 };
 
 // =============================================================================
-// Add a primary keyword to a user
+// Add a keyword to a user
 // =============================================================================
-exports.addPrimaryKeyword = function (req, res) {
+exports.addKeywordToUser = function (req, res) {
 
   if (req.params.userID < 0) {
     res.statusCode = 400;
@@ -110,6 +90,8 @@ exports.addPrimaryKeyword = function (req, res) {
     return res.send ('Keyword must not be null');
   }
 
+  // Determine if it's primary or secondary
+  var tableName = getTableName (req);
   var userID = req.params.userID;
 	
   // TODO: Sanitize keyword
@@ -117,23 +99,12 @@ exports.addPrimaryKeyword = function (req, res) {
 		
   async.series ([
     function (callback) {
-      var addKey = 'http://127.0.0.1:3000/api/keywords/' + keyword;
-      
-      request.put (addKey, function (err, res2, body) {
-	body = JSON.parse (body);
-	
-        if (res2.statusCode != 200) {
-          return callback (body, null);
-	}
-
-	return callback (null);
-      });	
+      addKeyword (keyword, function (err) {
+        return callback (err);
+      });        
     },
     function (callback) {
-      removeSecondaryKeyword (userID, keyword, callback);
-    },
-    function (callback) {
-      makePrimaryKeyword (userID, keyword, callback);
+      assignToUser (userID, keyword, tableName, callback);
     }
   ],
   function (err) {
@@ -147,32 +118,41 @@ exports.addPrimaryKeyword = function (req, res) {
   });
 };
 
-function removeSecondaryKeyword (userID, keyword, callback) {
-  var query = 'DELETE secondaryKeywords FROM secondaryKeywords ' +
-              'INNER JOIN keywords ON keywords.id = secondaryKeywords.keyID ' +
-              'WHERE keywords.name = "' + keyword + '"' +
-              'AND secondaryKeywords.userID = "' + userID + '"';
-
-  db.queryDB (query, function (err, result) {
-
-    if (err) return callback (err);
-    return callback (null);
-  });
-}
-
-function makePrimaryKeyword (userID, keyword, callback) {
-  var query = 'INSERT INTO primaryKeywords (userID, keyID) ' +
+function assignToUser (userID, keyword, tableName,  callback) {
+  var query = 'INSERT INTO ' + tableName + ' (userID, keyID) ' +
               'SELECT ' + userID + ', id ' +
               'FROM keywords WHERE name = "' + keyword + '" ' + 
-              'ON DUPLICATE KEY UPDATE userID = "' + userID + '"';	
+              'ON DUPLICATE KEY UPDATE userID=userID';
 			
   db.queryDB (query, function (err, result) {
     
-    if (err) return callback (err);
-    return callback (null);
+    if (err) {
+      callback(err);
+      return;
+    }
+
+    // Connection successful.
+    callback(null);
   });	
 }
 
+function addKeyword (keyword, callback) {
+
+  // Verify Valid api parameters
+  if (keyword === '') {
+    res.statusCode = 400;
+    return res.send ('Keyword must not be null');
+  }
+
+  var query = 'INSERT INTO keywords (name, popularity) ' +
+              'VALUES ("' + keyword + '", 0)' + 
+              'ON DUPLICATE KEY UPDATE name = name';
+	
+  db.queryDB (query, function (err, result) {
+    return callback (err);
+  });			
+
+}
 // =============================================================================  
 // Get a user's articles
 // ============================================================================= 

@@ -16,22 +16,25 @@ app.use (express.bodyParser ());
 // ----------------------------------------------------------------------------
 var users = require (__dirname + '/../routes/users');
 
-// Get data about a specific user
-app.get ('/api/users/:userID/', users.getUser);
-
 // Get a user's primary keywords
-app.get ('/api/users/:userID/primaryKeywords', users.getPrimaryKeywords);
+app.get ('/api/users/:userID/primaryKeywords', users.getUserKeywords);
 
 // Get a user's secondary keywords
-app.get ('/api/users/:userID/secondaryKeywords', users.getSecondaryKeywords);
+app.get ('/api/users/:userID/secondaryKeywords', users.getUserKeywords);
 
 // Remove a user's primary keyword
 app.del ('/api/users/:userID/primaryKeywords/:keyword',
-	users.removePrimaryKeyword);
+	users.removeUserKeyword);
+
+app.del ('/api/users/:userID/secondaryKeywords/:keyword',
+	users.removeUserKeyword);
 
 // Add a new primary keyword to a user
 app.put ('/api/users/:userID/primaryKeywords/:keyword',
-	users.addPrimaryKeyword);
+	users.addKeywordToUser);
+
+app.put ('/api/users/:userID/secondaryKeywords/:keyword',
+        users.addKeywordToUser);
 
 // Get a user's suggested articles
 app.get ('/api/users/:userID/articles', users.getArticles);
@@ -42,19 +45,18 @@ app.get ('/api/users/:userID/articles', users.getArticles);
 // ----------------------------------------------------------------------------
 var keywords = require (__dirname + '/../routes/keywords');
 
-// Get the list of all primary and secondary keywords of all users
+// Get all keywords
 app.get ('/api/keywords', keywords.getAllKeywords);
 
-// Get info about a specific keyword
+// Get a specific keyword
 app.get ('/api/keywords/:keyword', keywords.getKeyword);
-
-// Add a keyword
-app.put ('/api/keywords/:keyword', keywords.addKeyword);
 
 // =============================================================================
 // Server Tasks
 // =============================================================================
 var search = require (__dirname + '/../server/search.js');
 app.get ('/search', search.execute);
-app.listen (3000);
 
+var score = require (__dirname + '/../server/score.js');
+app.get ('/score', score.scoreArticles);
+app.listen (3000);

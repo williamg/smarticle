@@ -44,7 +44,7 @@ function getKeywords (callback) {
     if (err) return callback (err);
 
     // Keywords are returned as an array
-    keywords = JSON.parse (body);
+    var keywords = JSON.parse (body);
     return callback (null, keywords); 
   });
 }

@@ -49,30 +49,3 @@ exports.getKeyword = function (req, res) {
   });
 };
 
-// =============================================================================
-// Add a keyword
-// ============================================================================
-exports.addKeyword = function (req, res) {
-
-  // Verify Valid api parameters
-  if (req.params.keyword === '') {
-    res.statusCode = 400;
-    return res.send ('Keyword must not be null');
-  }
-
-  var keyword = req.params.keyword;
-  var query = 'INSERT INTO keywords (name, popularity) ' +
-              'VALUES ("' + keyword + '", 0)' + 
-              'ON DUPLICATE KEY UPDATE name = name';
-	
-  db.queryDB (query, function (err, result) {
-      
-    if (err) {
-      res.statusCode = 500;
-      return res.send (err);
-    }
-
-    res.statusCode = 200;
-    return res.json (true);
-  });			
-};
